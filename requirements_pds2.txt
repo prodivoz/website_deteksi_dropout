@@ -245,7 +245,7 @@ jeepney==0.9.0
 jieba==0.42.1
 Jinja2==3.1.6
 jiter==0.10.0
-joblib==1.5.1
+joblib
 jsonpatch==1.33
 jsonpickle==4.1.1
 jsonpointer==3.0.0
