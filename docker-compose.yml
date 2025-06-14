@@ -1,0 +1,27 @@
+
+version: '3'
+services:
+  db:
+    image: postgres:13
+    container_name: dropout_postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: metabase123
+      POSTGRES_DB: dropout_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  metabase:
+    image: metabase/metabase
+    container_name: dropout_metabase
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
