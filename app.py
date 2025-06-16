@@ -189,7 +189,7 @@ def single_prediction_page():
             st.warning(f"Pastikan input data Anda sesuai dengan format yang diharapkan oleh model. Error detail: {e}")
 
     st.markdown("---")
-    st.caption("Dibuat dengan Streamlit dan Model Machine Learning Random Forest")
+    
 
 
 # --- Fungsi untuk Halaman Prediksi Multiple Data ---
@@ -314,7 +314,7 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.markdown("🛠️ Dibuat dengan **Streamlit**", unsafe_allow_html=True)
+    st.markdown("Dibuat dengan Streamlit dan Model Machine Learning Random Forest", unsafe_allow_html=True)
 
 # --- Routing Halaman Berdasarkan Pilihan Sidebar ---
 if page_selection == " Prediksi Single Data":
