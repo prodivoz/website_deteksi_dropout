@@ -3,351 +3,327 @@ import pandas as pd
 import joblib
 import io
 
-# --- 1. Konfigurasi Halaman ---
-st.set_page_config(
-    layout="wide",
-    page_title="Prediktor Mahasiswa DO",
-    page_icon="🎓"
-)
+# --- Konfigurasi Awal ---
+st.set_page_config(layout="wide", page_title="Prediksi Mahasiswa DropOut")
 
-# --- 2. Memuat Model ---
-# Muat model sekali dan simpan dalam cache untuk seluruh sesi.
+# --- Memuat Model 
 @st.cache_resource
-def muat_model():
-    """
-    Memuat model machine learning yang sudah dilatih dari file joblib.
-    Menangani FileNotFoundError dan menghentikan aplikasi jika model tidak ditemukan.
-    """
+def load_model():
     try:
         model = joblib.load('model_rf.joblib')
         return model
     except FileNotFoundError:
-        st.error("Error: File model 'model_rf.joblib' tidak ditemukan.")
-        st.info("Pastikan file model berada di direktori yang sama dengan skrip ini.")
-        st.stop()
-    except Exception as e:
-        st.error(f"Terjadi kesalahan saat memuat model: {e}")
+        st.error("File model 'random_forest_model.joblib' tidak ditemukan. Pastikan file model berada di direktori yang sama dengan app.py.")
         st.stop()
 
-model = muat_model()
+model = load_model()
 
-# --- 3. Definisi Fitur ---
-# Kamus ini mendefinisikan semua fitur input, tipe, opsi, dan nilai defaultnya.
-# Ini menjadi satu-satunya sumber acuan untuk membuat elemen UI dan mengurutkan kolom DataFrame.
-DEFINISI_FITUR = {
-    # Pribadi & Keuangan
+
+# --- DEFINISI FITUR UNTUK INPUT STREAMLIT---
+features_definition = {
     "Marital_status": {
-        "label": "Status Pernikahan",
         "type": "selectbox",
-        "options": {"Lajang": 1, "Menikah": 2, "Duda/Janda": 3, "Bercerai": 4, "Berpisah Resmi": 5},
+        "options": {
+            "Single": 1, "Married": 2, "Widower": 3, "Divorced": 4, "Legally Separated": 5
+        },
         "default": 1,
         "help": "Status pernikahan mahasiswa."
     },
-    "Gender": {
-        "label": "Jenis Kelamin",
-        "type": "selectbox",
-        "options": {"Laki-laki": 1, "Perempuan": 0},
-        "default": 1,
-        "help": "Jenis kelamin mahasiswa."
-    },
-    "Age_at_enrollment": {
-        "label": "Usia saat Pendaftaran",
-        "type": "number_input", "min_value": 17, "max_value": 70, "default": 19, "step": 1,
-        "help": "Usia mahasiswa saat pertama kali mendaftar."
-    },
-    "Displaced": {
-        "label": "Mahasiswa Pindahan (Luar Daerah)",
-        "type": "selectbox",
-        "options": {"Tidak": 0, "Ya": 1},
-        "default": 0,
-        "help": "Apakah mahasiswa berasal dari luar daerah/kota?"
-    },
-    "Debtor": {
-        "label": "Memiliki Tunggakan?",
-        "type": "selectbox",
-        "options": {"Tidak": 0, "Ya": 1},
-        "default": 0,
-        "help": "Apakah mahasiswa memiliki tunggakan biaya kepada institusi?"
-    },
-    "Tuition_fees_up_to_date": {
-        "label": "Uang Kuliah Lancar?",
-        "type": "selectbox",
-        "options": {"Ya": 1, "No": 0},
-        "default": 1,
-        "help": "Apakah pembayaran uang kuliah mahasiswa lancar/tepat waktu?"
-    },
-    "Scholarship_holder": {
-        "label": "Penerima Beasiswa?",
-        "type": "selectbox",
-        "options": {"Tidak": 0, "Ya": 1},
-        "default": 0,
-        "help": "Apakah mahasiswa merupakan penerima beasiswa?"
-    },
-    # Latar Belakang Akademik
     "Application_mode": {
-        "label": "Jalur Pendaftaran",
         "type": "selectbox",
         "options": {
-            "Gelombang 1 - Kuota Umum": 1, "Gelombang 2 - Kuota Umum": 17, "Gelombang 3 - Kuota Umum": 18,
-            "Lulusan Kursus Tinggi Lain": 7, "Di Atas 23 Tahun": 39, "Transfer": 42, "Pindah Jurusan": 43,
-            "Mahasiswa Internasional (S1)": 15, "Gelombang 1 - Kuota Khusus (Pulau Azores)": 5,
-            "Gelombang 1 - Kuota Khusus (Pulau Madeira)": 16, "Ordonansi No. 612/93": 2, "Ordonansi No. 854-B/99": 10,
-            "Ordonansi No. 533-A/99, Item B2 (Beda Rencana)": 26, "Ordonansi No. 533-A/99, Item B3 (Institusi Lain)": 27,
-            "Lulusan Diploma Spesialisasi Teknologi": 44, "Pindah Institusi/Jurusan": 51, "Lulusan Diploma Siklus Pendek": 53,
-            "Pindah Institusi/Jurusan (Internasional)": 57
+            "1 - 1st Phase - General Contingent": 1, "2 - Ordinance No. 612/93": 2,
+            "5 - 1st Phase - Special Contingent (Azores Island)": 5, "7 - Holders of Other Higher Courses": 7,
+            "10 - Ordinance No. 854-B/99": 10, "15 - International Student (Bachelor)": 15,
+            "16 - 1st phase - Special Contingent (Madeira Island)": 16, "17 - 2nd phase - General Contingent": 17,
+            "18 - 3rd phase - General Contingent": 18, "26 - Ordinance No. 533-A/99, Item B2 (Different Plan)": 26,
+            "27 - Ordinance No. 533-A/99, Item B3 (Other Institution)": 27, "39 - Over 23 Years Old": 39,
+            "42 - Transfer": 42, "43 - Change of Course": 43, "44 - Technological Specialization Diploma Holders": 44,
+            "51 - Change of Institution/Course": 51, "53 - Short Cycle Diploma Holders": 53,
+            "57 - Change of Institution/Course (International)": 57
         },
         "default": 1,
-        "help": "Jalur atau tipe pendaftaran saat masuk."
+        "help": "Mode aplikasi pendaftaran mahasiswa."
     },
     "Previous_qualification_grade": {
-        "label": "Nilai Kualifikasi Sebelumnya",
-        "type": "number_input", "min_value": 0.0, "max_value": 200.0, "default": 130.0, "step": 0.1,
-        "help": "Nilai dari kualifikasi sebelumnya (misal: Rata-rata UN/Ijazah SMA)."
+        "type": "number_input", "min_value": 0.0, "max_value": 200.0, "default": 140.0, "step": 0.1,
+        "help": "Nilai rata-rata kualifikasi sebelumnya (misal: nilai UN/raport SMA)."
     },
     "Admission_grade": {
-        "label": "Nilai Penerimaan",
-        "type": "number_input", "min_value": 0.0, "max_value": 200.0, "default": 125.0, "step": 0.1,
-        "help": "Nilai tes masuk universitas."
+        "type": "number_input", "min_value": 0.0, "max_value": 200.0, "default": 130.0, "step": 0.1,
+        "help": "Nilai saat masuk universitas (misal: nilai tes masuk)."
     },
-    # Kinerja Semester
+    "Displaced": {
+        "type": "selectbox", "options": {"Tidak": 0, "Ya": 1}, "default": 0,
+        "help": "Apakah mahasiswa pindahan dari kota/negara lain?"
+    },
+    "Debtor": {
+        "type": "selectbox", "options": {"Tidak": 0, "Ya": 1}, "default": 0,
+        "help": "Apakah mahasiswa memiliki tunggakan (misal: biaya kuliah)?"
+    },
+    "Tuition_fees_up_to_date": {
+        "type": "selectbox", "options": {"Tidak": 0, "Ya": 1}, "default": 1,
+        "help": "Apakah pembayaran uang kuliah tepat waktu?"
+    },
+    "Gender": {
+        "type": "selectbox", "options": {"Perempuan": 0, "Laki-laki": 1}, "default": 1,
+        "help": "Jenis kelamin mahasiswa."
+    },
+    "Scholarship_holder": {
+        "type": "selectbox", "options": {"Tidak": 0, "Ya": 1}, "default": 0,
+        "help": "Apakah mahasiswa penerima beasiswa?"
+    },
+    "Age_at_enrollment": {
+        "type": "number_input", "min_value": 15, "max_value": 90, "default": 18, "step": 1,
+        "help": "Usia mahasiswa saat pertama kali mendaftar."
+    },
     "Curricular_units_1st_sem_enrolled": {
-        "label": "SKS Diambil Sem. 1",
-        "type": "number_input", "min_value": 0, "max_value": 50, "default": 6, "step": 1,
-        "help": "Jumlah unit kurikuler (SKS) yang diambil di semester 1."
+        "type": "number_input", "min_value": 0, "max_value": 100, "default": 6, "step": 1,
+        "help": "Jumlah unit kurikuler yang didaftarkan pada semester 1."
     },
     "Curricular_units_1st_sem_approved": {
-        "label": "SKS Lulus Sem. 1",
-        "type": "number_input", "min_value": 0, "max_value": 50, "default": 5, "step": 1,
-        "help": "Jumlah unit kurikuler (SKS) yang lulus di semester 1."
+        "type": "number_input", "min_value": 0, "max_value": 100, "default": 6, "step": 1,
+        "help": "Jumlah unit kurikuler yang disetujui pada semester 1."
     },
     "Curricular_units_1st_sem_grade": {
-        "label": "IPK Sem. 1",
-        "type": "number_input", "min_value": 0.0, "max_value": 20.0, "default": 12.5, "step": 0.1,
-        "help": "Nilai rata-rata (IPK) untuk semester 1 (skala 0-20)."
+        "type": "number_input", "min_value": 0.0, "max_value": 20.0, "default": 12.0, "step": 0.1,
+        "help": "Nilai rata-rata unit kurikuler pada semester 1."
     },
     "Curricular_units_2nd_sem_enrolled": {
-        "label": "SKS Diambil Sem. 2",
-        "type": "number_input", "min_value": 0, "max_value": 50, "default": 6, "step": 1,
-        "help": "Jumlah unit kurikuler (SKS) yang diambil di semester 2."
+        "type": "number_input", "min_value": 0, "max_value": 100, "default": 6, "step": 1,
+        "help": "Jumlah unit kurikuler yang didaftarkan pada semester 2."
     },
     "Curricular_units_2nd_sem_evaluations": {
-        "label": "Jumlah Evaluasi Sem. 2",
-        "type": "number_input", "min_value": 0, "max_value": 50, "default": 8, "step": 1,
-        "help": "Jumlah evaluasi (tes, tugas) di semester 2."
+        "type": "number_input", "min_value": 0, "max_value": 20, "default": 6, "step": 1,
+        "help": "Jumlah evaluasi yang dilakukan pada unit kurikuler semester 2."
     },
     "Curricular_units_2nd_sem_approved": {
-        "label": "SKS Lulus Sem. 2",
-        "type": "number_input", "min_value": 0, "max_value": 50, "default": 5, "step": 1,
-        "help": "Jumlah unit kurikuler (SKS) yang lulus di semester 2."
+        "type": "number_input", "min_value": 0, "max_value": 100, "default": 6, "step": 1,
+        "help": "Jumlah unit kurikuler yang disetujui pada semester 2."
     },
     "Curricular_units_2nd_sem_grade": {
-        "label": "IPK Sem. 2",
         "type": "number_input", "min_value": 0.0, "max_value": 20.0, "default": 12.0, "step": 0.1,
-        "help": "Nilai rata-rata (IPK) untuk semester 2 (skala 0-20)."
+        "help": "Nilai rata-rata unit kurikuler pada semester 2."
     },
     "Curricular_units_2nd_sem_without_evaluations": {
-        "label": "SKS Tanpa Evaluasi Sem. 2",
-        "type": "number_input", "min_value": 0, "max_value": 20, "default": 0, "step": 1,
-        "help": "Jumlah SKS di semester 2 yang tidak ada evaluasinya."
+        "type": "number_input", "min_value": 0, "max_value": 100, "default": 0, "step": 1,
+        "help": "Jumlah unit kurikuler tanpa evaluasi pada semester 2."
     },
 }
 
-# Urutan kolom harus sama persis dengan urutan saat pelatihan model.
-URUTAN_KOLOM_FITUR = list(DEFINISI_FITUR.keys())
+# Urutan kolom harus sama persis dengan urutan fitur saat model dilatih
+feature_columns_order = list(features_definition.keys())
 
-# --- 4. Fungsi untuk Menampilkan Halaman ---
 
-def tampilkan_halaman_beranda():
-    """Menampilkan halaman selamat datang dan informasi."""
-    st.title("🎓 Alat Prediksi Dropout Mahasiswa")
-    st.markdown("""
-        Selamat datang! Aplikasi ini menggunakan model machine learning *Random Forest* untuk memprediksi kemungkinan seorang mahasiswa akan *drop out* (DO). 
-        Aplikasi ini dirancang untuk membantu dosen pembimbing akademik dan administrator mengidentifikasi mahasiswa berisiko dan memberikan dukungan tepat waktu.
+# --- Fungsi untuk Halaman Prediksi Single Data ---
+def single_prediction_page():
+    st.title(" Prediksi Mahasiswa DropOut (Single Data)")
+    st.markdown("Aplikasi ini membantu memprediksi kemungkinan seorang mahasiswa akan mengalami *dropout* berdasarkan data akademik dan demografi.")
+    st.markdown("<hr style='border:1px solid #ccc'/>", unsafe_allow_html=True)
 
-        **Cara Penggunaan:**
-        1.  **Prediksi Tunggal:** Buka tab ini untuk memasukkan data seorang mahasiswa dan dapatkan prediksi instan.
-        2.  **Prediksi Massal:** Gunakan tab ini untuk mengunggah file CSV berisi data banyak mahasiswa dan dapatkan prediksi untuk semuanya sekaligus.
+    
+    st.header("Masukkan Data Mahasiswa")
 
-        Alat ini bersifat informasional dan sebaiknya digunakan sebagai bagian dari strategi dukungan mahasiswa yang komprehensif.
-    """)
-    st.markdown("---")
-    st.info("Silakan pilih mode prediksi dari tab di atas untuk memulai.")
+    input_data = {}
+    cols = st.columns(2)
+    col_idx = 0
 
-def tampilkan_halaman_prediksi_tunggal():
-    """Menampilkan formulir untuk prediksi satu mahasiswa."""
-    st.header("👤 Prediksi Mahasiswa Tunggal")
-    st.markdown("Isi detail di bawah ini untuk memprediksi status *dropout* seorang mahasiswa.")
-
-    data_input = {}
-
-    # --- Formulir Input menggunakan Expander ---
-    with st.expander("Informasi Pribadi & Keuangan", expanded=True):
-        kol1, kol2 = st.columns(2)
-        fitur_pribadi_keuangan = ["Marital_status", "Gender", "Age_at_enrollment", "Displaced", "Debtor", "Tuition_fees_up_to_date", "Scholarship_holder"]
-        for i, fitur in enumerate(fitur_pribadi_keuangan):
-            with kol1 if i % 2 == 0 else kol2:
-                detail = DEFINISI_FITUR[fitur]
-                if detail["type"] == "selectbox":
-                    opsi_terpilih = st.selectbox(detail["label"], options=detail["options"].keys(), help=detail["help"])
-                    data_input[fitur] = detail["options"][opsi_terpilih]
-                elif detail["type"] == "number_input":
-                    data_input[fitur] = st.number_input(detail["label"], min_value=detail["min_value"], max_value=detail["max_value"], value=detail["default"], step=detail.get("step", 1), help=detail["help"])
-
-    with st.expander("Latar Belakang Akademik"):
-        kol1, kol2 = st.columns(2)
-        fitur_akademik = ["Application_mode", "Previous_qualification_grade", "Admission_grade"]
-        for i, fitur in enumerate(fitur_akademik):
-            with kol1 if i % 2 == 0 else kol2:
-                detail = DEFINISI_FITUR[fitur]
-                if detail["type"] == "selectbox":
-                    indeks_default = list(detail["options"].values()).index(detail["default"])
-                    opsi_terpilih = st.selectbox(detail["label"], options=detail["options"].keys(), index=indeks_default, help=detail["help"])
-                    data_input[fitur] = detail["options"][opsi_terpilih]
-                elif detail["type"] == "number_input":
-                    data_input[fitur] = st.number_input(detail["label"], min_value=detail["min_value"], max_value=detail["max_value"], value=detail["default"], step=detail.get("step", 1), help=detail["help"])
-
-    with st.expander("Kinerja per Semester"):
-        kol1, kol2 = st.columns(2)
-        fitur_sem1 = ["Curricular_units_1st_sem_enrolled", "Curricular_units_1st_sem_approved", "Curricular_units_1st_sem_grade"]
-        fitur_sem2 = ["Curricular_units_2nd_sem_enrolled", "Curricular_units_2nd_sem_approved", "Curricular_units_2nd_sem_grade", "Curricular_units_2nd_sem_evaluations", "Curricular_units_2nd_sem_without_evaluations"]
-        with kol1:
-            st.subheader("Semester 1")
-            for fitur in fitur_sem1:
-                detail = DEFINISI_FITUR[fitur]
-                data_input[fitur] = st.number_input(detail["label"], min_value=detail["min_value"], max_value=detail["max_value"], value=detail["default"], step=detail.get("step", 1), help=detail["help"])
-        with kol2:
-            st.subheader("Semester 2")
-            for fitur in fitur_sem2:
-                detail = DEFINISI_FITUR[fitur]
-                data_input[fitur] = st.number_input(detail["label"], min_value=detail["min_value"], max_value=detail["max_value"], value=detail["default"], step=detail.get("step", 1), help=detail["help"])
+    for feature_name, details in features_definition.items():
+        with cols[col_idx % 2]:
+            st.subheader(f"{feature_name.replace('_', ' ').title()}")
+            if details["type"] == "number_input":
+                input_data[feature_name] = st.number_input(
+                    label=f"Masukkan {feature_name.replace('_', ' ').title()}",
+                    min_value=details["min_value"],
+                    max_value=details["max_value"],
+                    value=details["default"],
+                    step=details.get("step", 1),
+                    help=details.get("help", "")
+                )
+            elif details["type"] == "selectbox":
+                display_options = list(details["options"].keys())
+                
+                default_label = next(
+                    (key for key, value in details["options"].items() if value == details["default"]),
+                    None
+                )
+                
+                if default_label is None and display_options:
+                    default_index = 0
+                elif default_label is not None:
+                    default_index = display_options.index(default_label)
+                else:
+                    default_index = 0
+                
+                selected_display = st.selectbox(
+                    label=f"Pilih {feature_name.replace('_', ' ').title()}",
+                    options=display_options,
+                    index=default_index,
+                    help=details.get("help", "")
+                )
+                input_data[feature_name] = details["options"][selected_display]
+        col_idx += 1
 
     st.markdown("---")
-
-    if st.button("📈 Prediksi Status Mahasiswa", type="primary"):
-        df_input = pd.DataFrame([data_input])
-        # Pastikan urutan kolom sudah benar
-        df_input = df_input[URUTAN_KOLOM_FITUR]
+    if st.button("Prediksi Kemungkinan DropOut"):
+        input_df = pd.DataFrame([input_data])
+        input_df = input_df[feature_columns_order]
 
         try:
-            prediksi = model.predict(df_input)
-            prediksi_proba = model.predict_proba(df_input)
+            prediction = model.predict(input_df)
+            prediction_proba = model.predict_proba(input_df)
+
+            st.subheader("Hasil Prediksi:")
+            if prediction[0] == 0:
+                st.error(" **Mahasiswa ini DIPREDIKSI AKAN MENGALAMI DROPOUT.**")
+                st.markdown(f"** Probabilitas Dropout: `{prediction_proba[0][0]:.2f}`**")
+            else: 
+                st.success(" **Mahasiswa ini DIPREDIKSI TIDAK AKAN MENGALAMI DROPOUT.**")
+                st.markdown(f"** Probabilitas Tidak Dropout: `{prediction_proba[0][1]:.2f}`**")
             
-            st.subheader("📊 Hasil Prediksi")
-            kol1, kol2 = st.columns(2)
-
-            with kol1:
-                if prediksi[0] == 0: # Asumsi 0 adalah Dropout
-                    st.error("Status: Diprediksi akan **DROP OUT**")
-                    st.metric(label="Probabilitas Dropout", value=f"{prediksi_proba[0][0]:.2%}")
-                else: # Asumsi 1 adalah Lulus/Aktif
-                    st.success("Status: Diprediksi akan **LULUS / TETAP AKTIF**")
-                    st.metric(label="Probabilitas Lanjut", value=f"{prediksi_proba[0][1]:.2%}")
-
-            with kol2:
-                st.subheader("Analisis Faktor Risiko")
-                ada_risiko = False
-                if data_input.get("Debtor") == 1:
-                    st.warning("🚩 Risiko Tinggi: Mahasiswa memiliki tunggakan.")
-                    ada_risiko = True
-                if data_input.get("Tuition_fees_up_to_date") == 0:
-                    st.warning("🚩 Risiko Tinggi: Pembayaran uang kuliah tidak lancar.")
-                    ada_risiko = True
-                if data_input.get("Curricular_units_2nd_sem_approved", 0) < 3:
-                     st.warning("🚩 Risiko Sedang: Jumlah SKS lulus di semester 2 rendah.")
-                     ada_risiko = True
-                if not ada_risiko:
-                    st.info("Tidak ada faktor risiko tinggi yang terdeteksi secara eksplisit. Prediksi model didasarkan pada interaksi semua fitur.")
-
-            with st.expander("Lihat Data yang Disubmit"):
-                st.dataframe(df_input)
+            st.markdown("---")
+            st.subheader("Detail Input Data:")
+            st.dataframe(input_df)
 
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat prediksi: {e}")
+            st.error(f"Terjadi kesalahan saat membuat prediksi: {e}")
+            st.warning(f"Pastikan input data Anda sesuai dengan format yang diharapkan oleh model. Error detail: {e}")
 
-def tampilkan_halaman_prediksi_batch():
-    """Menampilkan halaman untuk unggah CSV dan prediksi massal."""
-    st.header("📄 Prediksi Mahasiswa Massal (Batch)")
-    st.markdown("Unggah file CSV berisi data mahasiswa untuk memprediksi status *dropout* beberapa mahasiswa sekaligus.")
+    st.markdown("---")
+    st.caption("Dibuat dengan Streamlit dan Model Machine Learning Random Forest")
 
-    st.subheader("1. Unduh Template CSV")
-    st.info("Pastikan file CSV Anda memiliki nama dan urutan kolom yang sama persis dengan template.")
-    
-    # Buat DataFrame contoh untuk template
-    df_contoh = pd.DataFrame({kol: [detail["default"]] for kol, detail in DEFINISI_FITUR.items()})
-    df_contoh = df_contoh[URUTAN_KOLOM_FITUR]
-    csv_contoh = df_contoh.to_csv(index=False).encode('utf-8')
+
+# --- Fungsi untuk Halaman Prediksi Multiple Data ---
+def multiple_prediction_page():
+    st.title("Prediksi Multi-Mahasiswa DropOut (Unggah File CSV)")
+    st.markdown("Unggah file CSV Anda yang berisi data banyak mahasiswa untuk diprediksi kemungkinan *dropout* secara bersamaan.")
+    st.markdown("---")
+
+    st.subheader("1. Unduh Contoh File CSV")
+    st.info("Gunakan file contoh ini sebagai template untuk memastikan format kolom Anda benar.")
+
+    # Membuat contoh DataFrame
+    sample_data = {col: [details["default"]] * 2 for col, details in features_definition.items()}
+    if "Age_at_enrollment" in sample_data:
+        sample_data["Age_at_enrollment"][1] = 20
+    if "Curricular_units_1st_sem_grade" in sample_data:
+        sample_data["Curricular_units_1st_sem_grade"][1] = 10.5
+    if "Gender" in sample_data:
+        sample_data["Gender"][1] = 0
+    if "Scholarship_holder" in sample_data:
+        sample_data["Scholarship_holder"][1] = 1
+
+    df_sample = pd.DataFrame(sample_data)
+    df_sample = df_sample[feature_columns_order] 
+
+    csv_sample_buffer = io.StringIO()
+    df_sample.to_csv(csv_sample_buffer, index=False)
+    csv_sample_data = csv_sample_buffer.getvalue().encode('utf-8')
 
     st.download_button(
-        label="Unduh Template CSV",
-        data=csv_contoh,
-        file_name="template_prediksi_mahasiswa.csv",
+        label="Unduh Contoh CSV",
+        data=csv_sample_data,
+        file_name="contoh_data_mahasiswa_input.csv",
         mime="text/csv",
-        help="Klik untuk mengunduh template dengan kolom yang benar."
+        help="Klik untuk mengunduh file CSV contoh dengan format kolom yang benar."
     )
-
+    
     st.markdown("---")
+
     st.subheader("2. Unggah File CSV Anda")
-    file_diunggah = st.file_uploader(
-        "Pilih sebuah file CSV",
+    uploaded_file = st.file_uploader(
+        "Pilih file CSV",
         type=["csv"],
-        help="Pastikan kolom sesuai template: " + ", ".join(URUTAN_KOLOM_FITUR)
+        help="Pastikan kolom di CSV Anda sesuai dengan yang diharapkan model: " + ", ".join(feature_columns_order)
     )
 
-    if file_diunggah:
+    df_results = pd.DataFrame()
+
+    if uploaded_file is not None:
         try:
-            df_input = pd.read_csv(file_diunggah)
-            st.success("File berhasil diunggah!")
-            st.write("Pratinjau Data:")
+            df_input = pd.read_csv(uploaded_file)
+            st.success("File CSV berhasil diunggah!")
+            st.write("Pratinjau Data Anda:")
             st.dataframe(df_input.head())
 
-            # Validasi kolom
-            kolom_hilang = [kol for kol in URUTAN_KOLOM_FITUR if kol not in df_input.columns]
-            if kolom_hilang:
-                st.error(f"Kolom wajib berikut tidak ditemukan di file Anda: {', '.join(kolom_hilang)}")
+            missing_cols = [col for col in feature_columns_order if col not in df_input.columns]
+            extra_cols = [col for col in df_input.columns if col not in feature_columns_order]
+
+            if missing_cols:
+                st.error(f"Kolom berikut tidak ditemukan di file CSV Anda: {', '.join(missing_cols)}. Harap periksa format file atau gunakan file contoh.")
                 return
+            
+            if extra_cols:
+                st.warning(f"Kolom berikut di file CSV Anda tidak digunakan oleh model dan akan diabaikan: {', '.join(extra_cols)}.")
+            
+            st.subheader("3. Melakukan Prediksi")
+            with st.spinner("Sedang memproses prediksi..."):
+                df_to_predict = df_input[feature_columns_order]
+                
+                predictions = model.predict(df_to_predict)
+                probabilities = model.predict_proba(df_to_predict)
 
-            st.subheader("3. Dapatkan Prediksi")
-            if st.button("Jalankan Prediksi Massal", type="primary"):
-                with st.spinner("Sedang memproses prediksi..."):
-                    df_untuk_prediksi = df_input[URUTAN_KOLOM_FITUR]
-                    
-                    prediksi = model.predict(df_untuk_prediksi)
-                    probabilitas = model.predict_proba(df_untuk_prediksi)
+                df_results = df_input.copy()
+                df_results['Predicted_Dropout_Status'] = ['DO' if p == 0 else 'Tidak DO' for p in predictions]
+                df_results['Dropout_Probability'] = [proba[0] for proba in probabilities]
 
-                    df_hasil = df_input.copy()
-                    # Asumsi 0: Dropout, 1: Lulus/Aktif
-                    df_hasil['Prediksi_Status'] = ['Dropout' if p == 0 else 'Lulus/Aktif' for p in prediksi]
-                    df_hasil['Probabilitas_Dropout'] = [f"{proba[0]:.2%}" for proba in probabilitas]
+            st.success("Prediksi berhasil!")
+            st.subheader("4. Hasil Prediksi")
+            st.dataframe(df_results)
 
-                    st.subheader("4. Hasil Prediksi")
-                    st.dataframe(df_hasil)
+            st.subheader("5. Unduh Hasil Prediksi")
+            csv_buffer = io.StringIO()
+            df_results.to_csv(csv_buffer, index=False)
+            csv_data = csv_buffer.getvalue().encode('utf-8')
 
-                    # Siapkan hasil untuk diunduh
-                    csv_hasil = df_hasil.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Unduh Hasil Prediksi (CSV)",
-                        data=csv_hasil,
-                        file_name="hasil_prediksi_dropout_mahasiswa.csv",
-                        mime="text/csv"
-                    )
+            st.download_button(
+                label="Unduh Hasil Prediksi (CSV)",
+                data=csv_data,
+                file_name="prediksi_mahasiswa_do_results.csv",
+                mime="text/csv"
+            )
+
+        except pd.errors.EmptyDataError:
+            st.error("File CSV kosong. Harap unggah file dengan data.")
+        except pd.errors.ParserError:
+            st.error("Gagal membaca file CSV. Pastikan format CSV valid. Pastikan juga data numerik tidak mengandung teks atau spasi.")
         except Exception as e:
             st.error(f"Terjadi kesalahan saat memproses file: {e}")
-            st.warning("Pastikan CSV Anda diformat dengan benar dan berisi data numerik yang valid.")
+            st.warning("Pastikan file CSV Anda memiliki format yang benar dan semua kolom fitur yang diperlukan ada. Error detail: " + str(e))
 
-# --- 5. Logika Utama Aplikasi ---
-# Gunakan tab untuk navigasi
-tab_beranda, tab_prediksi_tunggal, tab_prediksi_batch = st.tabs(["🏠 Beranda", "👤 Prediksi Tunggal", "📄 Prediksi Massal"])
 
-with tab_beranda:
-    tampilkan_halaman_beranda()
+# --- Sidebar  ---
+with st.sidebar:
+    st.image(
+        "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",  
+        width=100,
+        caption="Prediksi DO"
+    )
+    
+    st.markdown("## 🎓 Prediksi Mahasiswa DropOut")
+    st.markdown(
+        "Aplikasi ini membantu memprediksi kemungkinan seorang mahasiswa akan mengalami "
+        "**_dropout_** berdasarkan data akademik dan demografi."
+    )
+    
+    # Navigasi Halaman
+    st.markdown("---")
+    page_selection = st.radio(
+        "🔍 Pilih Mode Prediksi:",
+        (" Prediksi Multi-Data", " Prediksi Single Data"),
+        index=1,
+        help="Pilih apakah ingin melakukan prediksi satu mahasiswa atau banyak sekaligus."
+    )
+    
+    st.markdown("---")
+    st.markdown("🛠️ Dibuat dengan **Streamlit**", unsafe_allow_html=True)
 
-with tab_prediksi_tunggal:
-    tampilkan_halaman_prediksi_tunggal()
+# --- Routing Halaman Berdasarkan Pilihan Sidebar ---
+if page_selection == " Prediksi Single Data":
+    single_prediction_page()
+elif page_selection == " Prediksi Multi-Data":
+    multiple_prediction_page()
 
-with tab_prediksi_batch:
-    tampilkan_halaman_prediksi_batch()
-
-# --- Footer ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("🛠️ Dibuat dengan **Streamlit**")
-st.sidebar.caption("©Mochamad Zikri Abdilah")
+# --- Footer & Garis Pembatas ---
+st.markdown("<hr style='border:1px solid #e6e6e6; margin-top:40px'/>", unsafe_allow_html=True)
+st.caption("© 2025 - Prediksi DO Mahasiswa | Universitas Jaya Jaya Maju")
