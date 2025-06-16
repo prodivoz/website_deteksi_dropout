@@ -118,7 +118,6 @@ feature_columns_order = list(features_definition.keys())
 # --- Fungsi untuk Halaman Prediksi Single Data ---
 def single_prediction_page():
     st.title(" Prediksi Mahasiswa DropOut (Single Data)")
-    st.markdown("Website ini bisa memprediksi potensi seorang mahasiswa berhenti kuliah dengan melihat data akademik dan latar belakangnya.")
     st.markdown("<hr style='border:1px solid #ccc'/>", unsafe_allow_html=True)
 
     
@@ -302,8 +301,7 @@ with st.sidebar:
     
     st.markdown("## 🎓 Prediksi Mahasiswa DropOut")
     st.markdown(
-        "Aplikasi ini membantu memprediksi kemungkinan seorang mahasiswa akan mengalami "
-        "**_dropout_** berdasarkan data akademik dan demografi."
+        "Website ini bisa memprediksi potensi seorang mahasiswa berhenti kuliah dengan melihat data akademik dan latar belakangnya."
     )
     
     # Navigasi Halaman
