@@ -323,5 +323,4 @@ elif page_selection == " Prediksi Multi-Data":
     multiple_prediction_page()
 
 # --- Footer & Garis Pembatas ---
-st.markdown("<hr style='border:1px solid #e6e6e6; margin-top:40px'/>", unsafe_allow_html=True)
 st.caption("© 2025 - Prediksi DO Mahasiswa | Universitas Jaya Jaya Maju")
